@@ -1,3 +1,6 @@
+import networkx as nx
+import matplotlib.pyplot as plt
+
 class ProblemInstance:
     def __init__(self, n, m, k, p, edges):
         self.n = n
@@ -19,14 +22,39 @@ def count_neighbors(vertex, selected_vertices, edges):
             count += 1
     return count
 
+def remove_vertices(selected_vertices, num_vertices):
+    return set(sorted(selected_vertices)[:-num_vertices])
+
 # Greedy algorithm to iteratively remove vertices with the fewest neighbors until the required number of vertices (p) are removed. 
 def local_search(instance):
     selected_vertices = set(range(1, instance.n + 1))
-    for _ in range(instance.p):
-        # Find the vertex with the least neighbors among the selected vertices
-        vertex_with_least_neighbors = min(selected_vertices, key=lambda v: count_neighbors(v, selected_vertices, instance.edges))
-        selected_vertices.remove(vertex_with_least_neighbors)
+    neighborhood_levels = [1, 2, 3]
 
+    for level in neighborhood_levels:
+        num_vertices_to_remove = level
+        
+        while num_vertices_to_remove <= instance.p:
+            current_solution = remove_vertices(selected_vertices, num_vertices_to_remove)
+            improved = False
+            
+            while not improved:
+                next_solution = remove_vertices(current_solution, 1)
+                
+                # Check if the new solution is better
+                if count_neighbors(next_solution.pop(), next_solution, instance.edges) <= instance.k:
+                    current_solution = next_solution
+                    improved = True
+                else:
+                    break
+            
+            # If an improved solution is found, restart the search from the first neighborhood
+            if improved:
+                num_vertices_to_remove = 1
+            else:
+                num_vertices_to_remove += 1
+        
+        selected_vertices = current_solution
+    
     return selected_vertices
 
 def extract_instance_from_txt(file_path: str = "source.txt"):
@@ -44,6 +72,19 @@ def variable_neighborhood_search(instance):
     selected_vertices = local_search(instance)
     return selected_vertices
 
+# Helper function to draw the graph in the screen. Not recomended for large instances
+def draw_graph(instance: ProblemInstance, colored):
+    G = nx.Graph()
+    G.add_nodes_from(range(1, instance.n + 1))
+    G.add_edges_from(instance.edges)
+    node_colors = ['red' if node in colored else 'blue' for node in G.nodes()]
+
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=True, node_size=1000, font_size=10, font_color='black', node_color=node_colors)
+    plt.show()
+
 if __name__ == '__main__':
-    solution = variable_neighborhood_search(extract_instance_from_txt())
+    instance = extract_instance_from_txt()
+    solution = variable_neighborhood_search(instance)
+    draw_graph(instance, solution)
     print(f"\nSubset of vertices to remove from network: {solution}")
